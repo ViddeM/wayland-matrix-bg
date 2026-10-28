@@ -1,0 +1,18 @@
+[package]
+name = "niri-matrix"
+version = "0.1.0"
+edition = "2021"
+description = "Matrix digital rain wallpaper for wlr-layer-shell compositors (niri)"
+
+[dependencies]
+smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop"] }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-egl = "0.32"
+khronos-egl = { version = "6", features = ["static"] }
+glow = "0.16"
+ab_glyph = "0.2"
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+lto = "thin"

@@ -1,0 +1,8 @@
+// Show the rain in the overview backdrop (match --namespace if you changed it).
+layer-rule {
+    match namespace="^wallpaper$"
+    place-within-backdrop true
+}
+
+// Without systemd, start it with niri instead of using niri-matrix.service:
+// spawn-sh-at-startup "~/.cargo/bin/niri-matrix"

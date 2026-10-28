@@ -1,0 +1,18 @@
+[Unit]
+Description=Matrix digital rain wallpaper
+PartOf=graphical-session.target
+After=graphical-session.target
+Requisite=graphical-session.target
+
+[Service]
+ExecStart=%h/.cargo/bin/niri-matrix
+# With options (see `niri-matrix --help`):
+#ExecStart=%h/.cargo/bin/niri-matrix --fps 24 --cell-size 22
+Restart=on-failure
+# Pick the GPU (see INSTALL.md, "Multi-GPU"):
+#Environment=__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
+#Environment=DRI_PRIME=1
+
+[Install]
+# Used by `systemctl --user enable`. On niri, use `add-wants niri.service` instead.
+WantedBy=graphical-session.target
