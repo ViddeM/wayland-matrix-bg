@@ -203,7 +203,7 @@ impl App {
         match inserted {
             Ok(_) => wp.timer_pending = true,
             Err(e) => {
-                eprintln!("niri-matrix: failed to arm frame timer: {e}");
+                eprintln!("wayland-matrix-bg: failed to arm frame timer: {e}");
                 self.draw(idx, qh);
             }
         }
@@ -228,7 +228,7 @@ impl App {
         wp.last_frame = Some(Instant::now());
         match self.renderer.draw(egl_surface, &frame) {
             Ok(()) => wp.frame_pending = true,
-            Err(e) => eprintln!("niri-matrix: draw failed on {}: {e}", wp.name),
+            Err(e) => eprintln!("wayland-matrix-bg: draw failed on {}: {e}", wp.name),
         }
     }
 
@@ -243,7 +243,7 @@ impl App {
         wp.scale120 = scale120;
         if wp.logical.0 > 0 {
             if let Err(e) = self.apply_size(idx) {
-                eprintln!("niri-matrix: rescale failed: {e}");
+                eprintln!("wayland-matrix-bg: rescale failed: {e}");
             }
             self.schedule(idx, qh);
         }
@@ -348,7 +348,7 @@ impl LayerShellHandler for App {
         self.wallpapers[idx].logical = (w, h);
         if let Err(e) = self.apply_size(idx) {
             eprintln!(
-                "niri-matrix: failed to set up {}: {e}",
+                "wayland-matrix-bg: failed to set up {}: {e}",
                 self.wallpapers[idx].name
             );
             return;

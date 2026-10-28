@@ -1,4 +1,4 @@
-# Installing niri-matrix
+# Installing wayland-matrix-bg
 
 ## Requirements
 
@@ -22,8 +22,8 @@
 ## Build and install
 
 ```sh
-cargo install --locked --path .    # installs ~/.cargo/bin/niri-matrix
-niri-matrix                        # test run; Ctrl-C to stop
+cargo install --locked --path .    # installs ~/.cargo/bin/wayland-matrix-bg
+wayland-matrix-bg                  # test run; Ctrl-C to stop
 ```
 
 ## Autostart
@@ -31,20 +31,20 @@ niri-matrix                        # test run; Ctrl-C to stop
 **niri with systemd** (the default `niri-session` setup):
 
 ```sh
-install -Dm644 resources/niri-matrix.service ~/.config/systemd/user/niri-matrix.service
+install -Dm644 resources/wayland-matrix-bg.service ~/.config/systemd/user/wayland-matrix-bg.service
 systemctl --user daemon-reload
-systemctl --user add-wants niri.service niri-matrix.service
-systemctl --user start niri-matrix
+systemctl --user add-wants niri.service wayland-matrix-bg.service
+systemctl --user start wayland-matrix-bg
 ```
 
-**Other systemd sessions:** install the unit as above, then `systemctl --user enable --now niri-matrix`.
+**Other systemd sessions:** install the unit as above, then `systemctl --user enable --now wayland-matrix-bg`.
 
 **niri without systemd:** add the `spawn-sh-at-startup` line from `resources/niri.kdl` to
 `~/.config/niri/config.kdl`.
 
-**sway:** `exec ~/.cargo/bin/niri-matrix` in `~/.config/sway/config`.
+**sway:** `exec ~/.cargo/bin/wayland-matrix-bg` in `~/.config/sway/config`.
 
-**Hyprland:** `exec-once = ~/.cargo/bin/niri-matrix` in `~/.config/hypr/hyprland.conf`.
+**Hyprland:** `exec-once = ~/.cargo/bin/wayland-matrix-bg` in `~/.config/hypr/hyprland.conf`.
 
 ## Overview backdrop (niri)
 
@@ -76,7 +76,7 @@ For `spawn-at-startup`, `exec` or `exec-once` lines, delete them from the compos
 With systemd, put flags on the unit's `ExecStart=` line, then:
 
 ```sh
-systemctl --user daemon-reload && systemctl --user restart niri-matrix
+systemctl --user daemon-reload && systemctl --user restart wayland-matrix-bg
 ```
 
 ## Notes
@@ -97,7 +97,7 @@ systemctl --user daemon-reload && systemctl --user restart niri-matrix
 
 ## Troubleshooting
 
-- Logs: `journalctl --user -u niri-matrix -b`, or run `niri-matrix` in a terminal.
+- Logs: `journalctl --user -u wayland-matrix-bg -b`, or run `wayland-matrix-bg` in a terminal.
 - `wlr-layer-shell: ...`: the compositor doesn't support layer-shell.
 - `... lacks half-width katakana` or `fc-match found no font`: list suitable fonts with
 
@@ -111,10 +111,10 @@ systemctl --user daemon-reload && systemctl --user restart niri-matrix
 ## Uninstall
 
 ```sh
-systemctl --user disable --now niri-matrix    # removes add-wants and enable symlinks
-rm ~/.config/systemd/user/niri-matrix.service
+systemctl --user disable --now wayland-matrix-bg    # removes add-wants and enable symlinks
+rm ~/.config/systemd/user/wayland-matrix-bg.service
 systemctl --user daemon-reload
-cargo uninstall niri-matrix
+cargo uninstall wayland-matrix-bg
 ```
 
 Remove any autostart lines you added and re-enable your previous wallpaper tool. The niri

@@ -4,5 +4,5 @@ layer-rule {
     place-within-backdrop true
 }
 
-// Without systemd, start it with niri instead of using niri-matrix.service:
-// spawn-sh-at-startup "~/.cargo/bin/niri-matrix"
+// Without systemd, start it with niri instead of using wayland-matrix-bg.service:
+// spawn-sh-at-startup "~/.cargo/bin/wayland-matrix-bg"

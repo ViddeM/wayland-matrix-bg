@@ -345,7 +345,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "niri-matrix"
+name = "wayland-matrix-bg"
 version = "0.1.0"
 dependencies = [
  "ab_glyph",

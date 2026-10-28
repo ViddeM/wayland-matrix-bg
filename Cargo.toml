@@ -1,5 +1,5 @@
 [package]
-name = "niri-matrix"
+name = "wayland-matrix-bg"
 version = "0.1.0"
 edition = "2021"
 description = "Matrix digital rain wallpaper for wlr-layer-shell compositors (niri)"
