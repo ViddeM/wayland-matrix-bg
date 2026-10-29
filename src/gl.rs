@@ -3,6 +3,7 @@
 use std::error::Error;
 use std::ffi::c_void;
 
+use chrono::Timelike;
 use glow::HasContext;
 use khronos_egl as egl;
 use wayland_client::Connection;
@@ -18,6 +19,31 @@ const CELLS_SHADER: &str = include_str!("cells.frag");
 /// Pass 2: full-resolution glyphs from the cell state and the atlas.
 const RAIN_SHADER: &str = include_str!("matrix.frag");
 
+/// Clock atlas digit height in pixels; outputs sample it at a coarser mip level.
+const CLOCK_ATLAS_HEIGHT: u32 = 128;
+/// Width of the clock's colon slot, in digit widths.
+const CLOCK_COLON_WIDTH: f32 = 0.6;
+/// The clock never gets wider than this fraction of the output.
+const CLOCK_MAX_WIDTH: f32 = 0.9;
+
+/// Local wall-clock time to draw, as HH:MM.
+pub struct Clock {
+    pub digits: [u32; 4],
+    pub colon: bool,
+}
+
+impl Clock {
+    /// With `blink`, the colon shows only in the first half of each second.
+    pub fn now(blink: bool) -> Self {
+        let t = chrono::Local::now();
+        let (h, m) = (t.hour(), t.minute());
+        Self {
+            digits: [h / 10, h % 10, m / 10, m % 10],
+            colon: !blink || t.timestamp_subsec_millis() < 500,
+        }
+    }
+}
+
 /// Per-draw parameters for one output.
 pub struct Frame {
     /// Seconds, wrapped to keep f32 precision.
@@ -28,12 +54,18 @@ pub struct Frame {
     /// Physical pixels per logical pixel.
     pub scale: f32,
     pub seed: u32,
+    /// Set with `--clock`.
+    pub clock: Option<Clock>,
 }
 
 struct CellsUniforms {
     time: Option<glow::UniformLocation>,
     rows: Option<glow::UniformLocation>,
     seed: Option<glow::UniformLocation>,
+    clock_rect: Option<glow::UniformLocation>,
+    clock_digits: Option<glow::UniformLocation>,
+    clock_colon: Option<glow::UniformLocation>,
+    clock_lod: Option<glow::UniformLocation>,
 }
 
 struct RainUniforms {
@@ -65,6 +97,10 @@ pub struct Renderer {
     cell_size: f32,
     cell_aspect: f32,
     atlas_cell_height: f32,
+    /// Digit height as a fraction of the output height (`--clock-size`).
+    clock_size: f32,
+    /// Clock atlas digit cell width divided by its height.
+    clock_aspect: f32,
 }
 
 impl Renderer {
@@ -112,10 +148,15 @@ impl Renderer {
 
         // Rasterize at ~3x the logical cell height so scale <= 3 outputs never magnify.
         let atlas_cell_height = (args.cell_size * 3.0).round().clamp(32.0, 128.0) as u32;
-        let atlas = atlas::build(args.font.as_deref(), atlas_cell_height)?;
+        let (font, font_label) = atlas::load_font(args.font.as_deref())?;
+        let atlas = atlas::build(&font, &font_label, atlas_cell_height)?;
+        let clock = args
+            .clock
+            .then(|| atlas::build_clock(&font, CLOCK_ATLAS_HEIGHT))
+            .transpose()?;
 
         // SAFETY: plain GL calls on the current context.
-        let pipeline = unsafe { setup_gl(&gl, &atlas, args)? };
+        let pipeline = unsafe { setup_gl(&gl, &atlas, clock.as_ref(), args)? };
 
         Ok(Self {
             egl,
@@ -128,6 +169,8 @@ impl Renderer {
             cell_size: args.cell_size,
             cell_aspect: atlas.cell_aspect,
             atlas_cell_height: atlas_cell_height as f32,
+            clock_size: args.clock_size,
+            clock_aspect: clock.map_or(0.0, |c| c.aspect),
         })
     }
 
@@ -175,6 +218,10 @@ impl Renderer {
         let rows = (frame.height as f32 / cell_h).ceil() as i32;
         self.reserve_cells(cols, rows)?;
         let lod = (self.atlas_cell_height / cell_h).log2().max(0.0);
+        let clock = frame
+            .clock
+            .as_ref()
+            .map(|c| (c, self.clock_layout(frame, cell_w, cell_h)));
         let p = &self.pipeline;
         // SAFETY: plain GL calls on the current context; the VAO and textures stay bound.
         unsafe {
@@ -187,6 +234,16 @@ impl Renderer {
             gl.uniform_1_f32(u.time.as_ref(), frame.time);
             gl.uniform_1_f32(u.rows.as_ref(), rows as f32);
             gl.uniform_1_u32(u.seed.as_ref(), frame.seed);
+            if let Some((clock, ([x, y, w, h], clock_lod))) = clock {
+                gl.uniform_4_f32(u.clock_rect.as_ref(), x, y, w, h);
+                let [d0, d1, d2, d3] = clock.digits;
+                gl.uniform_4_u32(u.clock_digits.as_ref(), d0, d1, d2, d3);
+                gl.uniform_1_f32(u.clock_colon.as_ref(), f32::from(u8::from(clock.colon)));
+                gl.uniform_1_f32(u.clock_lod.as_ref(), clock_lod);
+            } else {
+                // A zero-size rect turns the clock off in the shader.
+                gl.uniform_4_f32(u.clock_rect.as_ref(), 0.0, 0.0, 0.0, 0.0);
+            }
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
 
             gl.bind_framebuffer(glow::FRAMEBUFFER, None);
@@ -204,6 +261,24 @@ impl Renderer {
         }
         self.egl.swap_buffers(self.display, surface)?;
         Ok(())
+    }
+
+    /// The clock's rect in cell units (x, y, width, height; rows from the top), centred on the
+    /// output, and the clock atlas mip level that averages one cell's footprint.
+    fn clock_layout(&self, frame: &Frame, cell_w: f32, cell_h: f32) -> ([f32; 4], f32) {
+        let (width, height) = (frame.width as f32, frame.height as f32);
+        // Clock width divided by digit height.
+        let slots = (4.0 + CLOCK_COLON_WIDTH) * self.clock_aspect;
+        // Shrink to fit narrow (e.g. portrait) outputs.
+        let digit_h = (self.clock_size * height).min(CLOCK_MAX_WIDTH * width / slots);
+        let clock_w = slots * digit_h;
+        let x = (width - clock_w) / 2.0;
+        let y = (height - digit_h) / 2.0;
+        let rect = [x / cell_w, y / cell_h, clock_w / cell_w, digit_h / cell_h];
+        let lod = ((cell_w * cell_h).sqrt() * CLOCK_ATLAS_HEIGHT as f32 / digit_h)
+            .log2()
+            .max(0.0);
+        (rect, lod)
     }
 
     /// Grows the cell-state texture to hold at least `cols` x `rows` cells.
@@ -276,6 +351,7 @@ unsafe fn link(
 unsafe fn setup_gl(
     gl: &glow::Context,
     atlas: &atlas::Atlas,
+    clock: Option<&atlas::ClockAtlas>,
     args: &Args,
 ) -> Result<Pipeline, String> {
     let vs = compile(gl, glow::VERTEX_SHADER, VERTEX_SHADER)?;
@@ -322,6 +398,26 @@ unsafe fn setup_gl(
     );
     gl.bind_framebuffer(glow::FRAMEBUFFER, None);
 
+    // Unit 2: clock digits (only with --clock).
+    if let Some(clock) = clock {
+        let clock_texture = gl.create_texture()?;
+        gl.active_texture(glow::TEXTURE2);
+        gl.bind_texture(glow::TEXTURE_2D, Some(clock_texture));
+        gl.tex_image_2d(
+            glow::TEXTURE_2D,
+            0,
+            glow::R8 as i32,
+            clock.width as i32,
+            clock.height as i32,
+            0,
+            glow::RED,
+            glow::UNSIGNED_BYTE,
+            glow::PixelUnpackData::Slice(Some(&clock.pixels)),
+        );
+        gl.generate_mipmap(glow::TEXTURE_2D);
+        set_filter(gl, glow::LINEAR_MIPMAP_LINEAR, glow::LINEAR);
+    }
+
     let glyph_count = atlas.glyph_count as f32;
     let [r, g, b] = args.color;
 
@@ -329,10 +425,16 @@ unsafe fn setup_gl(
     let loc = |name: &str| gl.get_uniform_location(cells_program, name);
     gl.uniform_1_f32(loc("u_glyph_count").as_ref(), glyph_count);
     gl.uniform_1_f32(loc("u_speed").as_ref(), args.speed);
+    gl.uniform_1_i32(loc("u_clock").as_ref(), 2);
+    gl.uniform_1_f32(loc("u_clock_colon_width").as_ref(), CLOCK_COLON_WIDTH);
     let cells_uniforms = CellsUniforms {
         time: loc("u_time"),
         rows: loc("u_rows"),
         seed: loc("u_seed"),
+        clock_rect: loc("u_clock_rect"),
+        clock_digits: loc("u_clock_digits"),
+        clock_colon: loc("u_clock_colon"),
+        clock_lod: loc("u_clock_lod"),
     };
 
     gl.use_program(Some(rain_program));

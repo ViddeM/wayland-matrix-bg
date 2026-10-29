@@ -64,14 +64,17 @@ For `spawn-at-startup`, `exec` or `exec-once` lines, delete them from the compos
 
 ## Options
 
-| Flag          | Default                          | Meaning                                     |
-|---------------|----------------------------------|---------------------------------------------|
-| `--fps`       | `30`                             | Frames per second per output                |
-| `--color`     | `#00ff41`                        | Rain colour, `#rrggbb`                      |
-| `--cell-size` | `18`                             | Glyph cell height in logical pixels (4–256) |
-| `--speed`     | `1.0`                            | Fall speed multiplier                       |
-| `--font`      | fc-match `Noto Sans Mono CJK JP` | Font file, `path[:face-index]`              |
-| `--namespace` | `wallpaper`                      | Layer-shell namespace, for layer rules      |
+| Flag            | Default                          | Meaning                                                  |
+|-----------------|----------------------------------|----------------------------------------------------------|
+| `--fps`         | `30`                             | Frames per second per output                             |
+| `--color`       | `#00ff41`                        | Rain colour, `#rrggbb`                                   |
+| `--cell-size`   | `18`                             | Glyph cell height in logical pixels (4–256)              |
+| `--speed`       | `1.0`                            | Fall speed multiplier                                    |
+| `--font`        | fc-match `Noto Sans Mono CJK JP` | Font file, `path[:face-index]`                           |
+| `--namespace`   | `wallpaper`                      | Layer-shell namespace, for layer rules                   |
+| `--clock`       | off                              | Local time (24-hour `HH:MM`) drawn by the rain, centred  |
+| `--clock-size`  | `0.2`                            | Clock digit height as a fraction of the output height    |
+| `--clock-blink` | off                              | Blink the clock's colon once a second                    |
 
 With systemd, put flags on the unit's `ExecStart=` line, then:
 

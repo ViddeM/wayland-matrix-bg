@@ -40,6 +40,18 @@ pub struct Args {
     /// Layer-shell namespace (niri layer-rules can match on it).
     #[arg(long, default_value = "wallpaper")]
     pub namespace: String,
+
+    /// Show the local time (24-hour HH:MM) in the rain, centred on each output.
+    #[arg(long)]
+    pub clock: bool,
+
+    /// Clock digit height as a fraction of the output height.
+    #[arg(long, default_value_t = 0.2, value_parser = parse_clock_size, requires = "clock")]
+    pub clock_size: f32,
+
+    /// Blink the clock's colon once a second.
+    #[arg(long, requires = "clock")]
+    pub clock_blink: bool,
 }
 
 impl Args {
@@ -54,6 +66,15 @@ fn parse_fps(s: &str) -> Result<f64, String> {
         Ok(fps)
     } else {
         Err("must be in (0, 1000]".into())
+    }
+}
+
+fn parse_clock_size(s: &str) -> Result<f32, String> {
+    let size: f32 = s.parse().map_err(|e| format!("{e}"))?;
+    if size > 0.0 && size <= 1.0 {
+        Ok(size)
+    } else {
+        Err("must be in (0, 1]".into())
     }
 }
 

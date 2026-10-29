@@ -29,7 +29,7 @@ use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1:
 use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
 use wayland_protocols::wp::viewporter::client::wp_viewporter::WpViewporter;
 
-use crate::gl::{Frame, Renderer};
+use crate::gl::{Clock, Frame, Renderer};
 use crate::Args;
 
 /// Wrap the shader clock so f32 time keeps sub-millisecond precision.
@@ -221,6 +221,7 @@ impl App {
             height,
             scale: wp.scale(),
             seed: wp.seed,
+            clock: self.args.clock.then(|| Clock::now(self.args.clock_blink)),
         };
         // The frame request is committed by eglSwapBuffers.
         let surface = wp.layer.wl_surface();

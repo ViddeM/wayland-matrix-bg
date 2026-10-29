@@ -7,7 +7,7 @@ Requisite=graphical-session.target
 [Service]
 ExecStart=%h/.cargo/bin/wayland-matrix-bg
 # With options (see `wayland-matrix-bg --help`):
-#ExecStart=%h/.cargo/bin/wayland-matrix-bg --fps 24 --cell-size 22
+#ExecStart=%h/.cargo/bin/wayland-matrix-bg --fps 24 --cell-size 22 --clock
 Restart=on-failure
 # Pick the GPU (see INSTALL.md, "Multi-GPU"):
 #Environment=__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
